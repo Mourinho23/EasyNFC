@@ -45,3 +45,13 @@ npm start
 ```
 
 Usa um dispositivo físico para testar a câmara e o NFC. No iOS, a compilação tem de ser assinada com um App ID e um perfil de aprovisionamento que permitam a capacidade NFC.
+
+## Criar um APK Android
+
+O perfil `preview` gera um APK instalável diretamente num telemóvel Android, sem incluir as ferramentas de desenvolvimento. Para compilar na cloud do Expo:
+
+```sh
+npx eas-cli@latest build --platform android --profile preview
+```
+
+Na primeira utilização, inicia sessão com `npx eas-cli@latest login` e configura o projeto com `npx eas-cli@latest build:configure`. Quando a compilação terminar, usa o link do Expo para transferir e instalar o APK. Para o disponibilizar no GitHub sem aumentar o tamanho de cada cópia do repositório, publica o ficheiro numa GitHub Release.
