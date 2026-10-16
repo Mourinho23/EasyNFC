@@ -7,14 +7,17 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
+import { getRandomBytesAsync } from 'expo-crypto';
 import { StatusBar } from 'expo-status-bar';
 import { nfcService } from './nfcService';
 
 type NfcAvailability = 'checking' | 'ready' | 'unavailable' | 'error';
+type WriteProtection = 'none' | 'password';
 
 function getErrorMessage(error: unknown): string {
   if (error instanceof Error && error.message) {
@@ -30,6 +33,10 @@ export default function App() {
   const [qrContent, setQrContent] = useState('');
   const [isWriting, setIsWriting] = useState(false);
   const [securityWarningVisible, setSecurityWarningVisible] = useState(false);
+  const [password, setPassword] = useState('');
+  const [passwordConfirmation, setPasswordConfirmation] = useState('');
+  const [passwordVisible, setPasswordVisible] = useState(false);
+  const [passwordProtectionUnavailable, setPasswordProtectionUnavailable] = useState('');
   const [feedback, setFeedback] = useState('');
   const [writeSucceeded, setWriteSucceeded] = useState(false);
   const scannedRef = useRef(false);
@@ -75,6 +82,7 @@ export default function App() {
     setQrContent('');
     setFeedback('');
     setWriteSucceeded(false);
+    setPasswordProtectionUnavailable('');
   }
 
   async function enableCamera() {
@@ -89,10 +97,34 @@ export default function App() {
     }
   }
 
-  async function writeToNfcTag() {
+  async function generatePassword() {
+    try {
+      const bytes = await getRandomBytesAsync(4);
+      const generated = Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('').toUpperCase();
+      setPassword(generated);
+      setPasswordConfirmation(generated);
+      setPasswordVisible(true);
+      setFeedback('');
+    } catch (error) {
+      setFeedback(getErrorMessage(error));
+    }
+  }
+
+  async function writeToNfcTag(protection: WriteProtection) {
     setSecurityWarningVisible(false);
+    setPasswordProtectionUnavailable('');
     if (!qrContent || writingRef.current) {
       return;
+    }
+    if (protection === 'password') {
+      if (!/^[\da-fA-F]{8}$/.test(password)) {
+        setFeedback('A palavra-passe tem de ter exatamente 8 dígitos hexadecimais.');
+        return;
+      }
+      if (password !== passwordConfirmation) {
+        setFeedback('As palavras-passe não coincidem.');
+        return;
+      }
     }
 
     writingRef.current = true;
@@ -101,6 +133,8 @@ export default function App() {
     setWriteSucceeded(false);
 
     let requestAttempted = false;
+    let ndefWritten = false;
+    let protectedTagId: string | undefined;
     let operationError: unknown;
     try {
       await nfcService.start();
@@ -108,8 +142,19 @@ export default function App() {
         throw new Error('Este telemóvel não suporta NFC.');
       }
 
+      if (protection === 'password') {
+        const supportedTag = await nfcService.checkPasswordProtectionSupport();
+        if (!supportedTag.supported) {
+          setPasswordProtectionUnavailable(supportedTag.reason);
+          return;
+        }
+        protectedTagId = supportedTag.tagId;
+      }
       requestAttempted = true;
       const tag = await nfcService.requestNdefTag('Aproxima o telemóvel do autocolante NFC.');
+      if (protection === 'password' && (!tag?.id || tag.id !== protectedTagId)) {
+        throw new Error('A etiqueta mudou durante a operação. A gravação protegida foi cancelada.');
+      }
       if (tag?.isWritable === false) {
         throw new Error('Este autocolante NFC está protegido contra escrita.');
       }
@@ -129,6 +174,15 @@ export default function App() {
       }
 
       await nfcService.writeNdefMessage(message);
+      ndefWritten = true;
+      if (protection === 'password') {
+        await nfcService.cancelTechnologyRequest();
+        requestAttempted = false;
+        if (!protectedTagId) {
+          throw new Error('Não foi possível confirmar a identidade da etiqueta para ativar a proteção.');
+        }
+        await nfcService.enablePasswordProtection(password, protectedTagId);
+      }
     } catch (error) {
       operationError = error;
     } finally {
@@ -147,12 +201,20 @@ export default function App() {
     }
 
     if (operationError !== undefined) {
-      setFeedback(getErrorMessage(operationError));
+      setFeedback(
+        ndefWritten
+          ? `O QR foi gravado, mas a proteção não foi confirmada. O estado da etiqueta é incerto; guarda a palavra-passe e verifica-a antes de reutilizar a etiqueta. ${getErrorMessage(operationError)}`
+          : getErrorMessage(operationError),
+      );
       return;
     }
 
     setWriteSucceeded(true);
-    setFeedback('Gravação concluída sem proteção por palavra-passe. Este autocolante pode ser alterado com outra app.');
+    setFeedback(
+      protection === 'password'
+        ? 'QR gravado e proteção por palavra-passe ativada. Guarda a palavra-passe: sem ela não poderás voltar a alterar a etiqueta.'
+        : 'Gravação concluída sem proteção por palavra-passe. Este autocolante pode ser alterado com outra app.',
+    );
   }
 
   const nfcMessage = {
@@ -199,7 +261,7 @@ export default function App() {
         <View style={styles.securityNotice}>
           <Text style={styles.securityNoticeTitle}>Proteção por palavra-passe</Text>
           <Text style={styles.securityNoticeText}>
-            A gravação NFC normal funciona com muitas etiquetas, mas bloquear alterações com uma palavra-passe depende do chip. A EasyNFC ainda não confirmou essa proteção em nenhum modelo.
+            A proteção contra escrita está disponível apenas para etiquetas NXP NTAG213, NTAG215 e NTAG216. A leitura continua pública e a palavra-passe nativa do chip tem apenas 32 bits.
           </Text>
         </View>
 
@@ -282,7 +344,7 @@ export default function App() {
           )}
         </TouchableOpacity>
         <Text style={styles.writeHint}>
-          Depois de tocar no botão, aproxima o telemóvel do autocolante.
+          Escolhe se queres proteger o conteúdo com palavra-passe.
         </Text>
 
         {!!feedback && (
@@ -293,9 +355,26 @@ export default function App() {
           </View>
         )}
 
+        {!!passwordProtectionUnavailable && (
+          <View style={styles.protectionWarning}>
+            <Text style={styles.protectionWarningTitle}>Proteção por palavra-passe não disponível</Text>
+            <Text style={styles.protectionWarningText}>
+              O QR ainda não foi gravado. A app não conseguiu confirmar uma etiqueta NTAG213, NTAG215 ou NTAG216 desbloqueada; etiquetas de outros modelos não aceitam esta proteção.
+              {` ${passwordProtectionUnavailable}`}
+            </Text>
+            <TouchableOpacity
+              style={styles.continueButton}
+              onPress={() => void writeToNfcTag('none')}
+              accessibilityRole="button"
+            >
+              <Text style={styles.continueButtonText}>Gravar mesmo assim, sem proteção</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
         <View style={styles.footer}>
           <Text style={styles.footerText}>
-            A gravação NDEF é compatível com muitas etiquetas. A proteção contra alterações por palavra-passe ainda não está ativa.
+            Etiquetas sem suporte podem ser gravadas sem proteção. Uma palavra-passe esquecida não pode ser recuperada pela EasyNFC.
           </Text>
         </View>
       </ScrollView>
@@ -306,20 +385,83 @@ export default function App() {
         onRequestClose={() => setSecurityWarningVisible(false)}
       >
         <View style={styles.modalBackdrop}>
-          <View style={styles.warningModal}>
+          <ScrollView
+            style={styles.warningModal}
+            contentContainerStyle={styles.warningModalContent}
+            keyboardShouldPersistTaps="handled"
+          >
             <View style={styles.warningIcon}>
               <Text style={styles.warningIconText}>!</Text>
             </View>
-            <Text style={styles.warningTitle}>Proteção não confirmada</Text>
+            <Text style={styles.warningTitle}>Como queres gravar?</Text>
             <Text style={styles.warningBody}>
-              A EasyNFC ainda não consegue confirmar nem ativar a proteção por palavra-passe neste autocolante. Se continuares, o conteúdo será gravado sem proteção e outra app poderá alterá-lo.
+              Sem palavra-passe, outras apps poderão alterar o conteúdo. A proteção da EasyNFC só funciona em NTAG213/215/216 com configuração compatível. Outros chips, incluindo NTAG210/212, MIFARE e ISO15693, não recebem esta proteção nesta versão, mesmo que tenham mecanismos próprios. O chip permite no máximo 32 bits: usa a geração aleatória para evitar palavras-passe previsíveis. A leitura do QR continua pública. Guarda a palavra-passe; não é possível recuperá-la.
             </Text>
             <TouchableOpacity
               style={styles.continueButton}
-              onPress={() => void writeToNfcTag()}
+              onPress={() => {
+                setSecurityWarningVisible(false);
+                void writeToNfcTag('none');
+              }}
               accessibilityRole="button"
             >
-              <Text style={styles.continueButtonText}>Continuar sem proteção</Text>
+              <Text style={styles.continueButtonText}>Gravar sem palavra-passe</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.generatePasswordButton}
+              onPress={() => void generatePassword()}
+              accessibilityRole="button"
+            >
+              <Text style={styles.generatePasswordText}>Gerar palavra-passe aleatória</Text>
+            </TouchableOpacity>
+            <TextInput
+              style={styles.passwordInput}
+              value={password}
+              onChangeText={(value) => setPassword(value.replace(/[^0-9a-fA-F]/g, '').slice(0, 8))}
+              placeholder="8 dígitos hexadecimais"
+              placeholderTextColor="#89938C"
+              secureTextEntry={!passwordVisible}
+              autoCapitalize="characters"
+              autoCorrect={false}
+              maxLength={8}
+              accessibilityLabel="Palavra-passe de 8 dígitos hexadecimais"
+            />
+            <TextInput
+              style={styles.passwordInput}
+              value={passwordConfirmation}
+              onChangeText={(value) => setPasswordConfirmation(value.replace(/[^0-9a-fA-F]/g, '').slice(0, 8))}
+              placeholder="Confirma a palavra-passe"
+              placeholderTextColor="#89938C"
+              secureTextEntry={!passwordVisible}
+              autoCapitalize="characters"
+              autoCorrect={false}
+              maxLength={8}
+              accessibilityLabel="Confirma a palavra-passe"
+            />
+            <TouchableOpacity
+              style={styles.cancelButton}
+              onPress={() => setPasswordVisible((visible) => !visible)}
+              accessibilityRole="button"
+            >
+              <Text style={styles.cancelButtonText}>{passwordVisible ? 'Ocultar palavra-passe' : 'Mostrar palavra-passe'}</Text>
+            </TouchableOpacity>
+            <Text style={styles.passwordHint}>
+              A palavra-passe aleatória é criada neste dispositivo e não é guardada pela EasyNFC. Copia-a e guarda-a antes de continuar.
+            </Text>
+            {passwordConfirmation.length > 0 && password !== passwordConfirmation && (
+              <Text style={styles.passwordMismatch}>As palavras-passe não coincidem.</Text>
+            )}
+            <TouchableOpacity
+              style={[
+                styles.passwordButton,
+                (!/^[\da-fA-F]{8}$/.test(password) || password !== passwordConfirmation) &&
+                  styles.buttonDisabled,
+              ]}
+              onPress={() => void writeToNfcTag('password')}
+              disabled={!/^[\da-fA-F]{8}$/.test(password) || password !== passwordConfirmation}
+              accessibilityRole="button"
+            >
+              <Text style={styles.continueButtonText}>Gravar e proteger com palavra-passe</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.cancelButton}
@@ -328,7 +470,7 @@ export default function App() {
             >
               <Text style={styles.cancelButtonText}>Cancelar gravação</Text>
             </TouchableOpacity>
-          </View>
+          </ScrollView>
         </View>
       </Modal>
     </SafeAreaView>
@@ -667,8 +809,11 @@ const styles = StyleSheet.create({
   warningModal: {
     width: '100%',
     maxWidth: 380,
+    maxHeight: '85%',
     borderRadius: 22,
     backgroundColor: '#FFFFFF',
+  },
+  warningModalContent: {
     padding: 22,
   },
   warningIcon: {
@@ -709,6 +854,73 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 13,
     fontWeight: '800',
+  },
+  passwordInput: {
+    minHeight: 49,
+    borderWidth: 1,
+    borderColor: '#D8DED9',
+    borderRadius: 13,
+    paddingHorizontal: 14,
+    color: '#26372E',
+    fontSize: 15,
+    letterSpacing: 2,
+    marginBottom: 9,
+  },
+  passwordButton: {
+    minHeight: 49,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 13,
+    backgroundColor: '#205A43',
+    marginBottom: 9,
+    paddingHorizontal: 8,
+  },
+  passwordMismatch: {
+    color: '#A3473B',
+    fontSize: 12,
+    marginBottom: 9,
+    textAlign: 'center',
+  },
+  passwordHint: {
+    color: '#6E7971',
+    fontSize: 11,
+    lineHeight: 16,
+    textAlign: 'center',
+    marginBottom: 12,
+  },
+  generatePasswordButton: {
+    minHeight: 43,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 13,
+    backgroundColor: '#E7F0E9',
+    marginBottom: 9,
+  },
+  generatePasswordText: {
+    color: '#205A43',
+    fontSize: 13,
+    fontWeight: '800',
+  },
+  protectionWarning: {
+    backgroundColor: '#FFF0D0',
+    borderRadius: 12,
+    padding: 14,
+    marginTop: 15,
+  },
+  protectionWarningTitle: {
+    color: '#744B0D',
+    fontSize: 14,
+    fontWeight: '800',
+    marginBottom: 6,
+  },
+  protectionWarningText: {
+    color: '#6E5B3D',
+    fontSize: 12,
+    lineHeight: 18,
+    marginBottom: 12,
+  },
+  buttonDisabled: {
+    opacity: 0.45,
   },
   cancelButton: {
     minHeight: 45,
