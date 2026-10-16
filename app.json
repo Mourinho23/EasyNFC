@@ -2,11 +2,24 @@
   "expo": {
     "name": "EasyNFC",
     "slug": "EasyNFC",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "plugins": [
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#F6F7F3",
+          "image": "./assets/splash-icon.png",
+          "imageWidth": 180,
+          "resizeMode": "contain",
+          "dark": {
+            "backgroundColor": "#102E22",
+            "image": "./assets/splash-icon-dark.png"
+          }
+        }
+      ],
       [
         "expo-camera",
         {
@@ -27,17 +40,17 @@
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
+        "backgroundColor": "#205A43",
         "foregroundImage": "./assets/android-icon-foreground.png",
-        "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
+      "versionCode": 2,
       "permissions": [
         "android.permission.CAMERA",
         "android.permission.NFC"
       ],
-      "package": "com.anonymous.EasyNFC"
+      "package": "com.mourinho23.easynfc"
     },
     "web": {
       "favicon": "./assets/favicon.png"

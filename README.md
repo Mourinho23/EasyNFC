@@ -52,9 +52,11 @@ Usa um dispositivo físico para testar a câmara e o NFC. No iOS, a compilação
 
 ## Criar um APK Android
 
-A página de instalação Android está em [EasyNFC — instalação Android](https://mourinho23.github.io/EasyNFC/). Cada atualização da branch `main` compila um APK de teste e publica-o na [versão mais recente do GitHub](https://github.com/Mourinho23/EasyNFC/releases/latest/download/EasyNFC.apk). Também podes executar a compilação a partir de **Actions → Build Android APK → Run workflow**.
+A página de instalação Android está em [EasyNFC — instalação Android](https://mourinho23.github.io/EasyNFC/). Cada atualização da branch `main` compila um APK autónomo de produção, com o bundle da app e a identidade visual EasyNFC, e publica-o na [versão mais recente do GitHub](https://github.com/Mourinho23/EasyNFC/releases/latest/download/EasyNFC.apk). Também podes executar a compilação a partir de **Actions → Build Android APK → Run workflow**.
 
-O APK é assinado para instalação de teste e distribuído fora da Play Store. No Android, transfere o ficheiro, permite a instalação desta origem se te for pedido e abre a app. Para compilar manualmente com Expo:
+O APK é assinado para instalação de teste e distribuído fora da Play Store. O identificador Android foi alterado para `com.mourinho23.easynfc`; a versão anterior com o identificador `com.anonymous.EasyNFC` pode continuar instalada como outra app e pode ser removida manualmente. No Android, transfere o ficheiro, permite a instalação desta origem se te for pedido e abre a app. A assinatura de teste não é uma chave estável de distribuição; uma atualização futura pode exigir desinstalar a versão anterior antes de instalar a nova.
+
+Esta app não usa o launcher de desenvolvimento Expo no APK publicado, mas continua a usar Expo, React Native e bibliotecas de terceiros para funcionar. Para compilar manualmente com Expo:
 
 ```sh
 npx eas-cli@latest build --platform android --profile preview
