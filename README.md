@@ -52,7 +52,9 @@ Usa um dispositivo físico para testar a câmara e o NFC. No iOS, a compilação
 
 ## Criar um APK Android
 
-O perfil `preview` gera um APK instalável diretamente num telemóvel Android, sem incluir as ferramentas de desenvolvimento. Para compilar na cloud do Expo:
+A página de instalação Android está em [EasyNFC — instalação Android](https://mourinho23.github.io/EasyNFC/). Cada atualização da branch `main` compila um APK de teste e publica-o na [versão mais recente do GitHub](https://github.com/Mourinho23/EasyNFC/releases/latest/download/EasyNFC.apk). Também podes executar a compilação a partir de **Actions → Build Android APK → Run workflow**.
+
+O APK é assinado para instalação de teste e distribuído fora da Play Store. No Android, transfere o ficheiro, permite a instalação desta origem se te for pedido e abre a app. Para compilar manualmente com Expo:
 
 ```sh
 npx eas-cli@latest build --platform android --profile preview

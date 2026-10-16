@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="pt">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#f6f7f3">
+    <meta name="description" content="Transfere e instala o EasyNFC para Android.">
+    <title>EasyNFC — instalação Android</title>
+    <style>
+      :root {
+        color-scheme: light;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        background: #f6f7f3;
+        color: #1e3027;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        min-height: 100vh;
+        margin: 0;
+        display: grid;
+        place-items: center;
+        padding: 24px;
+      }
+
+      main {
+        width: min(100%, 440px);
+        padding: 32px 24px;
+        border: 1px solid #e6eae5;
+        border-radius: 24px;
+        background: #fff;
+        box-shadow: 0 18px 50px rgb(29 45 37 / 8%);
+        text-align: center;
+      }
+
+      .mark {
+        width: 54px;
+        height: 54px;
+        margin: 0 auto 16px;
+        display: grid;
+        place-items: center;
+        border-radius: 18px;
+        background: #d9e9de;
+        color: #205a43;
+        font-size: 30px;
+        font-weight: 800;
+      }
+
+      h1 {
+        margin: 0;
+        font-size: 30px;
+      }
+
+      .intro {
+        margin: 10px 0 24px;
+        color: #66736a;
+        line-height: 1.6;
+      }
+
+      .download {
+        min-height: 52px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 14px;
+        background: #286244;
+        color: #fff;
+        font-weight: 750;
+        text-decoration: none;
+      }
+
+      .download:focus-visible,
+      a:focus-visible {
+        outline: 3px solid #a16c16;
+        outline-offset: 3px;
+      }
+
+      .steps {
+        margin: 24px 0 0;
+        padding: 18px 18px 18px 38px;
+        border-radius: 14px;
+        background: #f6f7f3;
+        color: #56635a;
+        line-height: 1.65;
+        text-align: left;
+      }
+
+      .note {
+        margin: 18px 0 0;
+        color: #7c877f;
+        font-size: 13px;
+        line-height: 1.6;
+      }
+
+      .source {
+        display: inline-block;
+        margin-top: 20px;
+        color: #286244;
+        font-size: 14px;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <div class="mark" aria-hidden="true">N</div>
+      <h1>EasyNFC</h1>
+      <p class="intro">Lê um QR code e grava-o num autocolante NFC, diretamente no teu Android.</p>
+      <a
+        class="download"
+        href="https://github.com/Mourinho23/EasyNFC/releases/latest/download/EasyNFC.apk"
+      >Descarregar APK para Android</a>
+      <ol class="steps">
+        <li>Transfere o APK para o teu telemóvel Android.</li>
+        <li>Abre o ficheiro e permite a instalação desta origem, se for pedido.</li>
+        <li>Abre a app e permite o acesso à câmara e ao NFC.</li>
+      </ol>
+      <p class="note">
+        Este APK é uma compilação de teste distribuída fora da Play Store. A instalação é apenas para Android; precisas de um telemóvel com NFC para gravar etiquetas.
+      </p>
+      <a class="source" href="https://github.com/Mourinho23/EasyNFC">Código-fonte e versões</a>
+    </main>
+  </body>
+</html>
